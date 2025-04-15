@@ -9,6 +9,11 @@ import { GameType } from "@/types/game";
 import ColorChangeGame from "@/games/ColorChangeGame";
 import CatchBallGame from "@/games/CatchBallGame";
 import FindNumberGame from "@/games/FindNumberGame";
+import FindColorGame from "@/games/FindColorGame";
+import ColorTextGame from "@/games/ColorTextGame";
+import ColorCatchGame from "@/games/ColorCatchGame";
+import ReflexTapGame from "@/games/ReflexTapGame";
+import PatternMemoryGame from "@/games/PatternMemoryGame";
 
 const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -63,12 +68,21 @@ const GamePage: React.FC = () => {
   const renderGame = () => {
     switch (game.id) {
       case "colorChange":
-        return <ColorChangeGame onFinish={() => {}} />;
+        return <ColorChangeGame onFinish={handleGameEnd} />;
       case "catchBall":
-        return <CatchBallGame onFinish={() => {}} />;
+        return <CatchBallGame onFinish={handleGameEnd} />;
       case "findNumber":
-        return <FindNumberGame onFinish={() => {}} />;
-      // More games will be added here
+        return <FindNumberGame onFinish={handleGameEnd} />;
+      case "findColor":
+        return <FindColorGame onFinish={handleGameEnd} />;
+      case "colorText":
+        return <ColorTextGame onFinish={handleGameEnd} />;
+      case "colorCatch":
+        return <ColorCatchGame onFinish={handleGameEnd} />;
+      case "reflexTap":
+        return <ReflexTapGame onFinish={handleGameEnd} />;
+      case "patternMemory":
+        return <PatternMemoryGame onFinish={handleGameEnd} />;
       default:
         return <div>Game component not available</div>;
     }
