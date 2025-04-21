@@ -1,6 +1,38 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { Square, Circle, Triangle } from "lucide-react";
+
+const SHAPES = [
+  {
+    type: "circle",
+    render: (color: string) => (
+      <svg width={60} height={60}>
+        <circle cx={30} cy={30} r={24} fill={color} stroke="#fff" strokeWidth={4} />
+      </svg>
+    ),
+  },
+  {
+    type: "square",
+    render: (color: string) => (
+      <svg width={60} height={60}>
+        <rect x={10} y={10} width={40} height={40} fill={color} stroke="#fff" strokeWidth={4} rx={8} />
+      </svg>
+    ),
+  },
+  {
+    type: "triangle",
+    render: (color: string) => (
+      <svg width={60} height={60}>
+        <polygon points="30,8 52,52 8,52" fill={color} stroke="#fff" strokeWidth={4} />
+      </svg>
+    ),
+  },
+];
+
+const SHAPE_COLORS = {
+  circle: "#facc15", // Yellow
+  square: "#38bdf8", // Sky
+  triangle: "#f87171", // Red
+};
 
 interface ReflexTapProps {
   onFinish: (score: number, time: number) => void;
@@ -15,55 +47,42 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
   const [startTime] = useState<number>(Date.now());
   const [lastAppearTime, setLastAppearTime] = useState<number>(0);
   const [tapsCount, setTapsCount] = useState(0);
+  const [recentTap, setRecentTap] = useState<"success" | "miss" | null>(null);
   const maxTaps = 15;
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize the game
   useEffect(() => {
     if (gameActive) {
       showNewTarget();
     }
-    
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
+    // eslint-disable-next-line
   }, [gameActive]);
 
   const showNewTarget = () => {
     if (!gameActive || !gameContainerRef.current) return;
-    
-    // Clear previous timeout if any
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    
-    // Hide target first
     setShowTarget(false);
-    
-    // Random delay before showing next target (between 1 and 3 seconds)
-    const delay = Math.floor(Math.random() * 2000) + 1000;
-    
+
+    // Random delay 800-1700ms for snappier, more dynamic play
+    const delay = Math.floor(Math.random() * 900) + 800;
     timeoutRef.current = setTimeout(() => {
       if (!gameActive || !gameContainerRef.current) return;
-      
       const container = gameContainerRef.current;
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // Calculate safe area (40px from edges)
-      const maxX = containerWidth - 80;
-      const maxY = containerHeight - 80;
-      
-      // Random position ensuring target stays fully within boundaries
-      const x = Math.floor(Math.random() * maxX) + 40;
-      const y = Math.floor(Math.random() * maxY) + 40;
-      
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      const pad = 40; // safe padding
+      const x = Math.floor(Math.random() * (w - pad * 2)) + pad;
+      const y = Math.floor(Math.random() * (h - pad * 2)) + pad;
+      const nextShape = SHAPES[Math.floor(Math.random() * SHAPES.length)].type as
+        | "circle"
+        | "square"
+        | "triangle";
       setTargetPosition({ x, y });
-      
-      // Random shape
-      const shapes: ("circle" | "square" | "triangle")[] = ["circle", "square", "triangle"];
-      setTargetShape(shapes[Math.floor(Math.random() * shapes.length)]);
-      
-      // Show target and record time
+      setTargetShape(nextShape);
       setShowTarget(true);
       setLastAppearTime(Date.now());
     }, delay);
@@ -72,16 +91,11 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
   const handleTargetTap = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!gameActive || !showTarget) return;
-    
-    // Calculate reaction time
-    const reactionTime = Date.now() - lastAppearTime;
-    
-    // Score is inversely proportional to reaction time, capped at 1000ms
-    const newPoints = Math.max(1, Math.floor(1000 / Math.max(reactionTime, 100)));
-    setScore(prev => prev + newPoints);
-    
-    // Increase tap count
-    setTapsCount(prev => {
+    setRecentTap("success");
+    const rt = Date.now() - lastAppearTime;
+    const newPoints = Math.max(1, Math.floor(900 / Math.max(rt, 90)));
+    setScore((prev) => prev + newPoints);
+    setTapsCount((prev) => {
       const next = prev + 1;
       if (next >= maxTaps) {
         endGame();
@@ -89,19 +103,18 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
       }
       return next;
     });
-    
-    // Show next target
-    showNewTarget();
+    setShowTarget(false);
+    setTimeout(() => {
+      setRecentTap(null);
+      showNewTarget();
+    }, 90);
   };
 
   const handleMiss = () => {
     if (!gameActive || !showTarget) return;
-    
-    // Penalty for missing
-    setScore(prev => Math.max(0, prev - 5));
-    
-    // Still count this tap
-    setTapsCount(prev => {
+    setRecentTap("miss");
+    setScore((prev) => Math.max(0, prev - 6));
+    setTapsCount((prev) => {
       const next = prev + 1;
       if (next >= maxTaps) {
         endGame();
@@ -109,67 +122,69 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
       }
       return next;
     });
-    
-    // Show next target
-    showNewTarget();
+    setShowTarget(false);
+    setTimeout(() => {
+      setRecentTap(null);
+      showNewTarget();
+    }, 120);
   };
 
   const endGame = () => {
     setGameActive(false);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    
     const endTime = Date.now();
     const timeTaken = endTime - startTime;
-    
     setTimeout(() => {
       onFinish(score, timeTaken);
-    }, 500);
+    }, 400);
   };
 
-  const renderShape = () => {
-    const size = 48;
-    
-    // Using a brighter, more visible color and adding a stroke for better visibility
-    switch (targetShape) {
-      case "circle":
-        return <Circle size={size} className="text-yellow-500 fill-yellow-500/20" />;
-      case "square":
-        return <Square size={size} className="text-blue-500 fill-blue-500/20" />;
-      case "triangle":
-        return <Triangle size={size} className="text-red-500 fill-red-500/20" />;
-    }
-  };
+  // Animated feedback effect
+  const feedbackColor =
+    recentTap === "success"
+      ? "bg-luxury-gold/30"
+      : recentTap === "miss"
+      ? "bg-red-500/20"
+      : "";
 
   return (
     <div className="flex flex-col items-center h-full">
-      <div className="text-center mb-4">
-        <div className="text-lg mb-1">Tap the shapes as fast as you can!</div>
+      <div className={`text-center mb-4 transition-all animate-fade-in`}>
+        <div className="text-lg font-semibold mb-1">Tap the shape – quick reflexes!</div>
         <div className="text-sm mb-4 text-luxury-white/70">
-          Taps: {tapsCount}/{maxTaps} | Score: {score}
+          Taps: {tapsCount}/{maxTaps} &nbsp;|&nbsp; Score: {score}
         </div>
       </div>
-      
-      <div 
+      <div
         ref={gameContainerRef}
-        className="flex-1 w-full relative border border-luxury-white/10 rounded-lg bg-luxury-black overflow-hidden"
+        className={`flex-1 w-full relative border border-luxury-white/10 rounded-lg bg-luxury-black overflow-hidden transition-all duration-300 ${feedbackColor}`}
         onClick={handleMiss}
       >
         {showTarget && (
-          <div
-            className="absolute p-2 cursor-pointer hover:bg-luxury-white/10 rounded-full flex items-center justify-center"
+          <button
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center focus:outline-none transition-transform hover:scale-105 shadow-lg"
             style={{
               left: `${targetPosition.x}px`,
               top: `${targetPosition.y}px`,
-              transform: 'translate(-50%, -50%)',
-              width: '60px',
-              height: '60px',
-              background: 'rgba(255, 255, 255, 0.1)'
+              width: "68px",
+              height: "68px",
+              borderRadius: 14,
+              padding: 0,
+              background: "#222B",
+              border: "3px solid #fff8",
+              boxShadow: "0 0 16px #ccc6, 0 2px 32px #000a",
             }}
+            aria-label={`Tap the ${targetShape}`}
             onClick={handleTargetTap}
+            tabIndex={0}
           >
-            {renderShape()}
-          </div>
+            {SHAPES.find(s => s.type === targetShape)?.render(SHAPE_COLORS[targetShape])}
+          </button>
         )}
+        {/* Optional: subtle pulse in background */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <div className="w-full h-full animate-pulse-subtle" />
+        </div>
       </div>
     </div>
   );
