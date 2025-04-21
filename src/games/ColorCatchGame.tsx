@@ -5,14 +5,14 @@ interface ColorCatchProps {
   onFinish: (score: number, time: number) => void;
 }
 
-// Color options
+// Color options with brighter, more visible colors
 const COLORS = [
-  { name: "Red", hex: "#ff0000" },
-  { name: "Blue", hex: "#0000ff" },
-  { name: "Green", hex: "#00ff00" },
-  { name: "Yellow", hex: "#ffff00" },
-  { name: "Purple", hex: "#800080" },
-  { name: "Orange", hex: "#ffa500" },
+  { name: "Red", hex: "#FF3B30" },
+  { name: "Blue", hex: "#007AFF" },
+  { name: "Green", hex: "#34C759" },
+  { name: "Yellow", hex: "#FFCC00" },
+  { name: "Purple", hex: "#AF52DE" },
+  { name: "Orange", hex: "#FF9500" },
 ];
 
 interface Circle {
@@ -173,20 +173,21 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
         className="flex-1 relative border border-luxury-white/10 rounded-lg bg-luxury-black overflow-hidden"
       >
         {circles.map(circle => {
-          const colorHex = COLORS.find(c => c.name === circle.color)?.hex || "#ffffff";
+          const colorObj = COLORS.find(c => c.name === circle.color);
+          const colorHex = colorObj?.hex || "#ffffff";
           
           return (
             <button
               key={circle.id}
-              className="absolute rounded-full transition-opacity hover:opacity-90 active:opacity-100 focus:outline-none"
+              className="absolute rounded-full shadow-lg transition-opacity hover:opacity-90 active:opacity-100 focus:outline-none"
               style={{
                 left: `${circle.x}px`,
                 top: `${circle.y}px`,
                 width: `${circle.size}px`,
                 height: `${circle.size}px`,
                 backgroundColor: colorHex,
-                opacity: 0.7,
-                border: "2px solid rgba(255,255,255,0.3)",
+                opacity: 0.9,
+                border: "2px solid rgba(255,255,255,0.5)",
                 transform: "translate(-50%, -50%)"
               }}
               onClick={(e) => handleCircleClick(circle.id, circle.color, e)}

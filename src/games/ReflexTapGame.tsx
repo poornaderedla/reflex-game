@@ -128,15 +128,15 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
 
   const renderShape = () => {
     const size = 48;
-    const className = "text-luxury-gold";
     
+    // Using a brighter, more visible color and adding a stroke for better visibility
     switch (targetShape) {
       case "circle":
-        return <Circle size={size} className={className} />;
+        return <Circle size={size} className="text-yellow-500 fill-yellow-500/20" />;
       case "square":
-        return <Square size={size} className={className} />;
+        return <Square size={size} className="text-blue-500 fill-blue-500/20" />;
       case "triangle":
-        return <Triangle size={size} className={className} />;
+        return <Triangle size={size} className="text-red-500 fill-red-500/20" />;
     }
   };
 
@@ -156,11 +156,14 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
       >
         {showTarget && (
           <div
-            className="absolute p-2 cursor-pointer hover:bg-luxury-white/10 focus:outline-none rounded-full"
+            className="absolute p-2 cursor-pointer hover:bg-luxury-white/10 rounded-full flex items-center justify-center"
             style={{
               left: `${targetPosition.x}px`,
               top: `${targetPosition.y}px`,
-              transform: 'translate(-50%, -50%)'
+              transform: 'translate(-50%, -50%)',
+              width: '60px',
+              height: '60px',
+              background: 'rgba(255, 255, 255, 0.1)'
             }}
             onClick={handleTargetTap}
           >
