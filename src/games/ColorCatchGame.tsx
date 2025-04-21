@@ -34,6 +34,7 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
   const circleIdRef = useRef(0);
   const gameIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const circleTimeoutsRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   // Initialize the game
   useEffect(() => {
@@ -42,18 +43,18 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     setTargetColor(COLORS[randomColorIndex].name);
     
     // Start generating circles
-    gameIntervalRef.current = setInterval(() => {
-      if (gameActive && containerRef.current) {
-        addNewCircle();
-      }
-    }, 1000);
+    if (gameActive) {
+      gameIntervalRef.current = setInterval(() => {
+        if (gameActive && containerRef.current) {
+          addNewCircle();
+        }
+      }, 1000);
+    }
 
     // Start the countdown timer
     timerIntervalRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
-          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
           endGame();
           return 0;
         }
@@ -64,6 +65,9 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     return () => {
       if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      // Clear all circle timeouts
+      circleTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      circleTimeoutsRef.current.clear();
     };
   }, [gameActive]);
 
@@ -74,17 +78,21 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     
-    // Set random position within container
+    // Set random position within container (accounting for circle size)
     const size = 60;
-    const x = Math.random() * (containerWidth - size);
-    const y = Math.random() * (containerHeight - size);
+    const margin = size / 2; // Ensure circles stay fully within container
+    
+    const x = margin + Math.random() * (containerWidth - size);
+    const y = margin + Math.random() * (containerHeight - size);
     
     // Randomly choose a color
     const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
     
+    const circleId = circleIdRef.current++;
+    
     // Create new circle
     const newCircle: Circle = {
-      id: circleIdRef.current++,
+      id: circleId,
       x,
       y,
       color: randomColor.name,
@@ -94,24 +102,33 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     setCircles(prev => [...prev, newCircle]);
     
     // Remove the circle after a delay
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       if (gameActive) {
-        setCircles(prev => prev.filter(circle => circle.id !== newCircle.id));
+        setCircles(prev => prev.filter(circle => circle.id !== circleId));
+        circleTimeoutsRef.current.delete(circleId);
       }
     }, 2500);
+    
+    circleTimeoutsRef.current.set(circleId, timeout);
   };
 
-  const handleCircleClick = (circle: Circle, e: React.MouseEvent) => {
+  const handleCircleClick = (circleId: number, circleColor: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (!gameActive) return;
     
-    // Remove the clicked circle
-    setCircles(prev => prev.filter(c => c.id !== circle.id));
+    // Remove the clicked circle and its timeout
+    const timeout = circleTimeoutsRef.current.get(circleId);
+    if (timeout) {
+      clearTimeout(timeout);
+      circleTimeoutsRef.current.delete(circleId);
+    }
+    
+    setCircles(prev => prev.filter(c => c.id !== circleId));
     
     // Update score based on whether the correct color was clicked
-    if (circle.color === targetColor) {
+    if (circleColor === targetColor) {
       setScore(prev => prev + 1);
     } else {
       setScore(prev => Math.max(0, prev - 1));
@@ -120,6 +137,14 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
 
   const endGame = () => {
     setGameActive(false);
+    
+    // Clear all intervals and timeouts
+    if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    
+    circleTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+    circleTimeoutsRef.current.clear();
+    
     const endTime = Date.now();
     const timeTaken = endTime - startTime;
     
@@ -161,9 +186,10 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
                 height: `${circle.size}px`,
                 backgroundColor: colorHex,
                 opacity: 0.7,
-                border: "2px solid rgba(255,255,255,0.3)"
+                border: "2px solid rgba(255,255,255,0.3)",
+                transform: "translate(-50%, -50%)"
               }}
-              onClick={(e) => handleCircleClick(circle, e)}
+              onClick={(e) => handleCircleClick(circle.id, circle.color, e)}
               disabled={!gameActive}
             />
           );

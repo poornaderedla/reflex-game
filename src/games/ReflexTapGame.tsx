@@ -22,7 +22,7 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
   // Initialize the game
   useEffect(() => {
     if (gameActive) {
-      timeoutRef.current = setTimeout(showNewTarget, 1000);
+      showNewTarget();
     }
     
     return () => {
@@ -49,11 +49,15 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
       
-      // Random position ensuring shape stays within boundaries
-      setTargetPosition({
-        x: Math.floor(Math.random() * (containerWidth - 80)) + 40,
-        y: Math.floor(Math.random() * (containerHeight - 80)) + 40
-      });
+      // Calculate safe area (40px from edges)
+      const maxX = containerWidth - 80;
+      const maxY = containerHeight - 80;
+      
+      // Random position ensuring target stays fully within boundaries
+      const x = Math.floor(Math.random() * maxX) + 40;
+      const y = Math.floor(Math.random() * maxY) + 40;
+      
+      setTargetPosition({ x, y });
       
       // Random shape
       const shapes: ("circle" | "square" | "triangle")[] = ["circle", "square", "triangle"];
@@ -151,8 +155,8 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
         onClick={handleMiss}
       >
         {showTarget && (
-          <button
-            className="absolute p-4 rounded-full hover:bg-luxury-white/10 focus:outline-none"
+          <div
+            className="absolute p-2 cursor-pointer hover:bg-luxury-white/10 focus:outline-none rounded-full"
             style={{
               left: `${targetPosition.x}px`,
               top: `${targetPosition.y}px`,
@@ -161,7 +165,7 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
             onClick={handleTargetTap}
           >
             {renderShape()}
-          </button>
+          </div>
         )}
       </div>
     </div>
