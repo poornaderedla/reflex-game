@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Square, Circle, Triangle } from "lucide-react";
 
 interface ReflexTapProps {
@@ -16,14 +16,25 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
   const [lastAppearTime, setLastAppearTime] = useState<number>(0);
   const [tapsCount, setTapsCount] = useState(0);
   const maxTaps = 15;
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize the game
   useEffect(() => {
-    setTimeout(showNewTarget, 1000);
-  }, []);
+    if (gameActive) {
+      timeoutRef.current = setTimeout(showNewTarget, 1000);
+    }
+    
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [gameActive]);
 
   const showNewTarget = () => {
-    if (!gameActive) return;
+    if (!gameActive || !gameContainerRef.current) return;
+    
+    // Clear previous timeout if any
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     
     // Hide target first
     setShowTarget(false);
@@ -31,13 +42,17 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
     // Random delay before showing next target (between 1 and 3 seconds)
     const delay = Math.floor(Math.random() * 2000) + 1000;
     
-    setTimeout(() => {
-      if (!gameActive) return;
+    timeoutRef.current = setTimeout(() => {
+      if (!gameActive || !gameContainerRef.current) return;
       
-      // Random position
+      const container = gameContainerRef.current;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Random position ensuring shape stays within boundaries
       setTargetPosition({
-        x: Math.floor(Math.random() * 80), // percentage of container width
-        y: Math.floor(Math.random() * 80)  // percentage of container height
+        x: Math.floor(Math.random() * (containerWidth - 80)) + 40,
+        y: Math.floor(Math.random() * (containerHeight - 80)) + 40
       });
       
       // Random shape
@@ -50,7 +65,8 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
     }, delay);
   };
 
-  const handleTargetTap = () => {
+  const handleTargetTap = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!gameActive || !showTarget) return;
     
     // Calculate reaction time
@@ -96,6 +112,8 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
 
   const endGame = () => {
     setGameActive(false);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
     const endTime = Date.now();
     const timeTaken = endTime - startTime;
     
@@ -128,21 +146,19 @@ const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
       </div>
       
       <div 
+        ref={gameContainerRef}
         className="flex-1 w-full relative border border-luxury-white/10 rounded-lg bg-luxury-black overflow-hidden"
         onClick={handleMiss}
       >
         {showTarget && (
           <button
-            className="absolute p-4 rounded-full hover:bg-luxury-white/10 focus:outline-none touch-none"
+            className="absolute p-4 rounded-full hover:bg-luxury-white/10 focus:outline-none"
             style={{
-              left: `${targetPosition.x}%`,
-              top: `${targetPosition.y}%`,
+              left: `${targetPosition.x}px`,
+              top: `${targetPosition.y}px`,
               transform: 'translate(-50%, -50%)'
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTargetTap();
-            }}
+            onClick={handleTargetTap}
           >
             {renderShape()}
           </button>

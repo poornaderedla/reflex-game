@@ -32,6 +32,8 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
   const [timeLeft, setTimeLeft] = useState(30); // 30 second game
   const containerRef = useRef<HTMLDivElement>(null);
   const circleIdRef = useRef(0);
+  const gameIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize the game
   useEffect(() => {
@@ -40,18 +42,18 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     setTargetColor(COLORS[randomColorIndex].name);
     
     // Start generating circles
-    const intervalId = setInterval(() => {
+    gameIntervalRef.current = setInterval(() => {
       if (gameActive && containerRef.current) {
         addNewCircle();
       }
     }, 1000);
 
     // Start the countdown timer
-    const timerId = setInterval(() => {
+    timerIntervalRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          clearInterval(intervalId);
-          clearInterval(timerId);
+          if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
+          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
           endGame();
           return 0;
         }
@@ -60,21 +62,22 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     }, 1000);
 
     return () => {
-      clearInterval(intervalId);
-      clearInterval(timerId);
+      if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
   }, [gameActive]);
 
   const addNewCircle = () => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || !gameActive) return;
     
     const container = containerRef.current;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     
     // Set random position within container
-    const x = Math.random() * (containerWidth - 60);
-    const y = Math.random() * (containerHeight - 60);
+    const size = 60;
+    const x = Math.random() * (containerWidth - size);
+    const y = Math.random() * (containerHeight - size);
     
     // Randomly choose a color
     const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -85,18 +88,25 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
       x,
       y,
       color: randomColor.name,
-      size: 60
+      size
     };
     
     setCircles(prev => [...prev, newCircle]);
     
     // Remove the circle after a delay
     setTimeout(() => {
-      setCircles(prev => prev.filter(circle => circle.id !== newCircle.id));
+      if (gameActive) {
+        setCircles(prev => prev.filter(circle => circle.id !== newCircle.id));
+      }
     }, 2500);
   };
 
-  const handleCircleClick = (circle: Circle) => {
+  const handleCircleClick = (circle: Circle, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!gameActive) return;
+    
     // Remove the clicked circle
     setCircles(prev => prev.filter(c => c.id !== circle.id));
     
@@ -135,7 +145,7 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
       
       <div 
         ref={containerRef} 
-        className="flex-1 relative border border-luxury-white/10 rounded-lg bg-luxury-black overflow-hidden touch-none"
+        className="flex-1 relative border border-luxury-white/10 rounded-lg bg-luxury-black overflow-hidden"
       >
         {circles.map(circle => {
           const colorHex = COLORS.find(c => c.name === circle.color)?.hex || "#ffffff";
@@ -143,7 +153,7 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
           return (
             <button
               key={circle.id}
-              className="absolute rounded-full transition-opacity"
+              className="absolute rounded-full transition-opacity hover:opacity-90 active:opacity-100 focus:outline-none"
               style={{
                 left: `${circle.x}px`,
                 top: `${circle.y}px`,
@@ -153,7 +163,7 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
                 opacity: 0.7,
                 border: "2px solid rgba(255,255,255,0.3)"
               }}
-              onClick={() => handleCircleClick(circle)}
+              onClick={(e) => handleCircleClick(circle, e)}
               disabled={!gameActive}
             />
           );
