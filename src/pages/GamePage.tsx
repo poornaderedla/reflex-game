@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGame } from "@/contexts/GameContext";
@@ -15,6 +14,17 @@ import ColorCatchGame from "@/games/ColorCatchGame";
 import ReflexTapGame from "@/games/ReflexTapGame";
 import PatternMemoryGame from "@/games/PatternMemoryGame";
 
+const STANDARD_BEST_AVERAGE_TIMINGS: Record<string, number> = {
+  colorChange: 0.20,      // 0.20s world average for "Color Change"
+  catchBall: 0.18,        // 0.18s for "Catch the Ball"
+  findNumber: 4.00,       // 4s standard average for grid
+  findColor: 3.50,        // 3.5s for colors
+  colorText: 4.00,        // 4s for color text
+  colorCatch: 27.00,      // 27s for color catch
+  reflexTap: 5.00,        // 5s (total for whole game or for all taps)
+  patternMemory: 2.50,    // 2.5s per pattern
+};
+
 const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const { games, getGameHighScore, saveGameResult } = useGame();
@@ -24,7 +34,6 @@ const GamePage: React.FC = () => {
   const [isHighScore, setIsHighScore] = useState(false);
   const navigate = useNavigate();
 
-  // Find the game data
   const game = games.find(g => g.id === gameId);
   
   if (!game) {
@@ -32,16 +41,13 @@ const GamePage: React.FC = () => {
   }
 
   const handleGameStart = () => {
-    // Game started logic
     setShowResults(false);
   };
 
   const handleGameEnd = (score: number, time: number) => {
-    // Check if it's a high score
     const highScore = getGameHighScore(game.id as GameType) || 0;
     const newHighScore = score > highScore;
     
-    // Save result
     const result = {
       gameId: game.id as GameType,
       score,
@@ -52,7 +58,6 @@ const GamePage: React.FC = () => {
     
     saveGameResult(result);
     
-    // Update state to show results
     setGameScore(score);
     setGameTime(time);
     setIsHighScore(newHighScore);
@@ -61,10 +66,9 @@ const GamePage: React.FC = () => {
 
   const handleRestart = () => {
     setShowResults(false);
-    navigate(0); // Refresh the page to restart the game
+    navigate(0);
   };
 
-  // Select the correct game component based on the game ID
   const renderGame = () => {
     switch (game.id) {
       case "colorChange":
@@ -88,6 +92,8 @@ const GamePage: React.FC = () => {
     }
   };
 
+  const standardBestAverage = STANDARD_BEST_AVERAGE_TIMINGS[game.id] ?? undefined;
+
   return (
     <Layout>
       {showResults ? (
@@ -97,6 +103,7 @@ const GamePage: React.FC = () => {
           time={gameTime}
           isHighScore={isHighScore}
           onRestart={handleRestart}
+          standardBestAverage={standardBestAverage}
         />
       ) : (
         <GameContainer

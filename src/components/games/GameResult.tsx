@@ -10,6 +10,7 @@ interface GameResultProps {
   time: number;
   isHighScore: boolean;
   onRestart: () => void;
+  standardBestAverage?: number; // NEW
 }
 
 const GameResult: React.FC<GameResultProps> = ({
@@ -18,6 +19,7 @@ const GameResult: React.FC<GameResultProps> = ({
   time,
   isHighScore,
   onRestart,
+  standardBestAverage,
 }) => {
   const navigate = useNavigate();
 
@@ -63,6 +65,15 @@ const GameResult: React.FC<GameResultProps> = ({
           </div>
         </div>
 
+        <div className="flex flex-col items-center gap-2 text-sm mt-2">
+          <div className="text-luxury-white/80 mb-0.5">Your Time: <span className="font-semibold">{(time / 1000).toFixed(2)}s</span></div>
+          {standardBestAverage !== undefined && (
+            <div className="text-green-400 font-semibold">
+              World Standard Time: {standardBestAverage.toFixed(2)}s
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-3 gap-4">
           <button
             onClick={() => navigate("/")}
@@ -92,3 +103,4 @@ const GameResult: React.FC<GameResultProps> = ({
 };
 
 export default GameResult;
+
