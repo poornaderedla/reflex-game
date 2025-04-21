@@ -1,191 +1,254 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 
 const SHAPES = [
   {
     type: "circle",
-    render: (color: string) => (
-      <svg width={60} height={60}>
-        <circle cx={30} cy={30} r={24} fill={color} stroke="#fff" strokeWidth={4} />
+    render: (color: string, animate: boolean) => (
+      <svg
+        width={72}
+        height={72}
+        className={`drop-shadow-[0_8px_24px_rgba(0,0,0,0.2)] transition-transform duration-100 ${animate ? "animate-tap-pop" : ""}`}
+      >
+        <circle cx={36} cy={36} r={28} fill={color} stroke="#fff" strokeWidth={5} />
       </svg>
     ),
   },
   {
     type: "square",
-    render: (color: string) => (
-      <svg width={60} height={60}>
-        <rect x={10} y={10} width={40} height={40} fill={color} stroke="#fff" strokeWidth={4} rx={8} />
+    render: (color: string, animate: boolean) => (
+      <svg
+        width={72}
+        height={72}
+        className={`drop-shadow-[0_8px_24px_rgba(0,0,0,0.21)] transition-transform duration-100 ${animate ? "animate-tap-pop" : ""}`}
+      >
+        <rect x={12} y={12} width={48} height={48} rx={12} fill={color} stroke="#fff" strokeWidth={5} />
       </svg>
     ),
   },
   {
     type: "triangle",
-    render: (color: string) => (
-      <svg width={60} height={60}>
-        <polygon points="30,8 52,52 8,52" fill={color} stroke="#fff" strokeWidth={4} />
+    render: (color: string, animate: boolean) => (
+      <svg
+        width={72}
+        height={72}
+        className={`drop-shadow-[0_8px_24px_rgba(0,0,0,0.17)] transition-transform duration-100 ${animate ? "animate-tap-pop" : ""}`}
+      >
+        <polygon points="36,12 62,60 10,60" fill={color} stroke="#fff" strokeWidth={5} />
       </svg>
     ),
   },
 ];
 
+// Use accessible, distinct colors.
 const SHAPE_COLORS = {
   circle: "#facc15", // Yellow
-  square: "#38bdf8", // Sky
-  triangle: "#f87171", // Red
+  square: "#38bdf8", // Bright sky-blue
+  triangle: "#f97316", // Bright orange
 };
 
 interface ReflexTapProps {
   onFinish: (score: number, time: number) => void;
 }
 
+const ANIMATE_POP_CSS = `
+@keyframes tap-pop {
+  0% { transform: scale(1);}
+  50% {transform: scale(1.2);}
+  100% {transform: scale(1);}
+}
+.animate-tap-pop {
+  animation: tap-pop 0.24s cubic-bezier(.8,-0.05,.86,.53);
+}
+@keyframes shake {
+  10%, 90% { transform: translateX(-3px);}
+  20%, 80% { transform: translateX(6px);}
+  30%, 50%, 70% { transform: translateX(-10px);}
+  40%, 60% { transform: translateX(10px);}
+}
+.animate-shake {
+  animation: shake 0.35s cubic-bezier(.5,-0.5,.75,1.5);
+}
+/* Subtle background pulse to indicate game is running */
+@keyframes pulse-bg {
+  0%,100% {opacity: 1;}
+  50% {opacity: 0.93;}
+}
+.bg-pulse-anim {
+  animation: pulse-bg 2.4s ease-in-out infinite;
+}
+`;
+
+const MAX_TAPS = 15;
+
 const ReflexTapGame: React.FC<ReflexTapProps> = ({ onFinish }) => {
   const [gameActive, setGameActive] = useState(true);
   const [score, setScore] = useState(0);
   const [showTarget, setShowTarget] = useState(false);
-  const [targetPosition, setTargetPosition] = useState({ x: 0, y: 0 });
+  const [targetPosition, setTargetPosition] = useState({ x: 120, y: 120 });
   const [targetShape, setTargetShape] = useState<"circle" | "square" | "triangle">("circle");
-  const [startTime] = useState<number>(Date.now());
-  const [lastAppearTime, setLastAppearTime] = useState<number>(0);
   const [tapsCount, setTapsCount] = useState(0);
-  const [recentTap, setRecentTap] = useState<"success" | "miss" | null>(null);
-  const maxTaps = 15;
-  const gameContainerRef = useRef<HTMLDivElement>(null);
+  const [recentHit, setRecentHit] = useState<"success"|"miss"|null>(null);
+  const [targetAnimate, setTargetAnimate] = useState(false);
+  const [startTime] = useState(Date.now());
+  const [lastAppearTime, setLastAppearTime] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Inject animation keyframes (for drop-in use)
+  useEffect(() => {
+    if (!document.getElementById("reflex-tap-animations")) {
+      const style = document.createElement("style");
+      style.id = "reflex-tap-animations";
+      style.innerHTML = ANIMATE_POP_CSS;
+      document.head.appendChild(style);
+    }
+  }, []);
+
+  // Start or reset game
   useEffect(() => {
     if (gameActive) {
-      showNewTarget();
+      queueNewTarget();
     }
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-    // eslint-disable-next-line
+  // eslint-disable-next-line
   }, [gameActive]);
 
-  const showNewTarget = () => {
-    if (!gameActive || !gameContainerRef.current) return;
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  // Launch a new target after a delay
+  const queueNewTarget = () => {
     setShowTarget(false);
+    setTargetAnimate(false);
+    if (!gameActive || !containerRef.current) return;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-    // Random delay 800-1700ms for snappier, more dynamic play
-    const delay = Math.floor(Math.random() * 900) + 800;
+    const delay = Math.floor(Math.random() * 700) + 700; // 0.7s–1.4s
     timeoutRef.current = setTimeout(() => {
-      if (!gameActive || !gameContainerRef.current) return;
-      const container = gameContainerRef.current;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      const pad = 40; // safe padding
-      const x = Math.floor(Math.random() * (w - pad * 2)) + pad;
-      const y = Math.floor(Math.random() * (h - pad * 2)) + pad;
-      const nextShape = SHAPES[Math.floor(Math.random() * SHAPES.length)].type as
-        | "circle"
-        | "square"
-        | "triangle";
-      setTargetPosition({ x, y });
-      setTargetShape(nextShape);
-      setShowTarget(true);
-      setLastAppearTime(Date.now());
+      launchNewTarget();
     }, delay);
   };
 
-  const handleTargetTap = (e: React.MouseEvent) => {
+  // Shows target at random position & shape
+  const launchNewTarget = () => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    const pad = 56; // Allow for shape size and touch
+    const x = Math.floor(Math.random() * (w - pad * 2)) + pad;
+    const y = Math.floor(Math.random() * (h - pad * 2)) + pad;
+    const nextShape = SHAPES[Math.floor(Math.random() * SHAPES.length)].type as "circle"|"square"|"triangle";
+    setTargetPosition({ x, y });
+    setTargetShape(nextShape);
+    setShowTarget(true);
+    setLastAppearTime(Date.now());
+    setTargetAnimate(false);
+  };
+
+  // When player taps target
+  const handleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!gameActive || !showTarget) return;
-    setRecentTap("success");
-    const rt = Date.now() - lastAppearTime;
-    const newPoints = Math.max(1, Math.floor(900 / Math.max(rt, 90)));
-    setScore((prev) => prev + newPoints);
+    setRecentHit("success");
+    setTargetAnimate(true);
+
+    // More points for speed, with a minimum of 1 per hit (slower = fewer points)
+    const ms = Math.max(80, Date.now() - lastAppearTime);
+    const pts = Math.round(800 / ms) + 2;
+
+    setScore((prev) => prev + pts);
+
     setTapsCount((prev) => {
-      const next = prev + 1;
-      if (next >= maxTaps) {
-        endGame();
-        return next;
+      if (prev + 1 >= MAX_TAPS) {
+        endGame(prev + 1);
+        return prev + 1;
       }
-      return next;
+      return prev + 1;
     });
-    setShowTarget(false);
+
     setTimeout(() => {
-      setRecentTap(null);
-      showNewTarget();
-    }, 90);
+      setRecentHit(null);
+      setShowTarget(false);
+      queueNewTarget();
+    }, 130);
   };
 
+  // Missed tap
   const handleMiss = () => {
     if (!gameActive || !showTarget) return;
-    setRecentTap("miss");
-    setScore((prev) => Math.max(0, prev - 6));
+    setRecentHit("miss");
+    setScore((prev) => Math.max(0, prev - 7));
     setTapsCount((prev) => {
-      const next = prev + 1;
-      if (next >= maxTaps) {
-        endGame();
-        return next;
+      if (prev + 1 >= MAX_TAPS) {
+        endGame(prev + 1);
+        return prev + 1;
       }
-      return next;
+      return prev + 1;
     });
     setShowTarget(false);
     setTimeout(() => {
-      setRecentTap(null);
-      showNewTarget();
-    }, 120);
+      setRecentHit(null);
+      queueNewTarget();
+    }, 250);
   };
 
-  const endGame = () => {
+  const endGame = (tapValue: number) => {
     setGameActive(false);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    const endTime = Date.now();
-    const timeTaken = endTime - startTime;
+    const timeTaken = Date.now() - startTime;
     setTimeout(() => {
       onFinish(score, timeTaken);
-    }, 400);
+    }, 420);
   };
 
-  // Animated feedback effect
-  const feedbackColor =
-    recentTap === "success"
-      ? "bg-luxury-gold/30"
-      : recentTap === "miss"
-      ? "bg-red-500/20"
-      : "";
+  // Feedback classes for hit/miss
+  const feedbackClass = 
+    recentHit === "success"
+      ? "shadow-[0_0_28px_8px_#fde68a82] bg-yellow-400/10"
+      : recentHit === "miss"
+      ? "animate-shake bg-red-500/25"
+      : "bg-pulse-anim";
 
   return (
-    <div className="flex flex-col items-center h-full">
-      <div className={`text-center mb-4 transition-all animate-fade-in`}>
-        <div className="text-lg font-semibold mb-1">Tap the shape – quick reflexes!</div>
-        <div className="text-sm mb-4 text-luxury-white/70">
-          Taps: {tapsCount}/{maxTaps} &nbsp;|&nbsp; Score: {score}
+    <div className="w-full h-full flex flex-col items-center">
+      <div className="mb-3 mt-2 text-center w-full">
+        <div className="text-lg font-bold tracking-wide">Reflex Tap</div>
+        <div className="text-xs mb-1 text-luxury-white/60">Score: <span className="font-bold">{score}</span> &nbsp;|&nbsp; Taps: {tapsCount}/{MAX_TAPS}</div>
+        <div className="text-xs text-luxury-gold/70 mb-2">
+          {recentHit === "success" && <span className="transition">Great Reflex!</span>}
+          {recentHit === "miss" && <span className="transition text-red-400">Missed!</span>}
         </div>
       </div>
       <div
-        ref={gameContainerRef}
-        className={`flex-1 w-full relative border border-luxury-white/10 rounded-lg bg-luxury-black overflow-hidden transition-all duration-300 ${feedbackColor}`}
+        ref={containerRef}
+        className={`flex-1 w-full relative rounded-xl border border-zinc-800 bg-luxury-black/90 overflow-hidden transition-all duration-200 select-none cursor-pointer ${feedbackClass}`}
         onClick={handleMiss}
+        style={{ minHeight: 340 }}
       >
         {showTarget && (
           <button
-            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center focus:outline-none transition-transform hover:scale-105 shadow-lg"
+            className={`z-10 absolute top-0 left-0 flex items-center justify-center bg-white/0 border-none focus:outline-none`}
             style={{
-              left: `${targetPosition.x}px`,
-              top: `${targetPosition.y}px`,
-              width: "68px",
-              height: "68px",
-              borderRadius: 14,
-              padding: 0,
-              background: "#222B",
-              border: "3px solid #fff8",
-              boxShadow: "0 0 16px #ccc6, 0 2px 32px #000a",
+              position: "absolute",
+              left: targetPosition.x,
+              top: targetPosition.y,
+              width: 76,
+              height: 76,
+              transform: "translate(-50%,-50%)",
             }}
             aria-label={`Tap the ${targetShape}`}
-            onClick={handleTargetTap}
+            onClick={handleTap}
             tabIndex={0}
           >
-            {SHAPES.find(s => s.type === targetShape)?.render(SHAPE_COLORS[targetShape])}
+            {SHAPES.find(s=>s.type===targetShape)?.render(SHAPE_COLORS[targetShape], targetAnimate)}
           </button>
         )}
-        {/* Optional: subtle pulse in background */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="w-full h-full animate-pulse-subtle" />
-        </div>
+        {/* subtle background pulse */}
+        <div className="absolute inset-0 pointer-events-none z-0" />
       </div>
+      {/* Show animation CSS keyframes */}
+      <style>{ANIMATE_POP_CSS}</style>
     </div>
   );
 };
