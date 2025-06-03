@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 
 interface ColorChangeGameProps {
@@ -85,7 +84,6 @@ const ColorChangeGame: React.FC<ColorChangeGameProps> = ({ onFinish }) => {
       onClick={handleTap}
     >
       <div className="pointer-events-none select-none">
-        <div className="text-4xl font-bold text-white">{score}</div>
         <div className="mt-2 text-sm font-medium text-white/70">
           {rounds}/{totalRounds}
         </div>

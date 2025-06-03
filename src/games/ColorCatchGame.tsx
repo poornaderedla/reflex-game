@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 
 const COLORS = [
@@ -30,6 +29,8 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
   const [startTime] = useState<number>(Date.now());
   const [timeLeft, setTimeLeft] = useState(30);
   const [tapFeedback, setTapFeedback] = useState<"good" | "bad" | null>(null);
+  const [showGameOver, setShowGameOver] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const circleIdRef = useRef(0);
   const gameIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -37,6 +38,13 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
   const circleTimeoutsRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   useEffect(() => {
+    // Check if device is mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     // Randomly choose a target color
     setTargetColor(COLORS[Math.floor(Math.random() * COLORS.length)].name);
 
@@ -63,8 +71,8 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       circleTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
       circleTimeoutsRef.current.clear();
+      window.removeEventListener('resize', checkMobile);
     };
-    // eslint-disable-next-line
   }, [gameActive]);
 
   const addNewCircle = () => {
@@ -73,7 +81,7 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     const container = containerRef.current;
     const w = container.clientWidth;
     const h = container.clientHeight;
-    const size = 66;
+    const size = isMobile ? 80 : 66; // Larger size for mobile
     const margin = size / 2;
 
     const x = margin + Math.random() * (w - size);
@@ -102,10 +110,10 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     circleTimeoutsRef.current.set(circleId, timeout);
   };
 
-  const handleCircleClick = (
+  const handleCircleInteraction = (
     circleId: number,
     circleColor: string,
-    e: React.MouseEvent
+    e: React.MouseEvent | React.TouchEvent
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -130,6 +138,7 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
 
   const endGame = () => {
     setGameActive(false);
+    setShowGameOver(true);
     if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     circleTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
@@ -138,7 +147,7 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
     const timeTaken = endTime - startTime;
     setTimeout(() => {
       onFinish(score, timeTaken);
-    }, 500);
+    }, 2000);
   };
 
   // Get color hex for accessibility text and feedback
@@ -173,14 +182,14 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
       <div
         ref={containerRef}
         className={`flex-1 relative border border-luxury-white/10 rounded-lg bg-luxury-black overflow-hidden transition-all ${borderPulse}`}
-        style={{ minHeight: 300 }}
+        style={{ minHeight: isMobile ? '70vh' : 300 }}
       >
         {circles.map(circle => {
           const colorObj = COLORS.find(c => c.name === circle.color);
           return (
             <button
               key={circle.id}
-              className="absolute rounded-full shadow-lg focus:outline-none border-4 border-white/70 flex items-center justify-center hover:scale-110 transition-all duration-150"
+              className="absolute rounded-full shadow-lg focus:outline-none border-4 border-white/70 flex items-center justify-center hover:scale-110 transition-all duration-150 touch-manipulation"
               style={{
                 left: `${circle.x}px`,
                 top: `${circle.y}px`,
@@ -189,15 +198,16 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
                 backgroundColor: colorObj?.hex || "#fff",
                 color: "#111",
                 fontWeight: 600,
-                fontSize: "1.1rem",
+                fontSize: isMobile ? "1.2rem" : "1.1rem",
                 transform: "translate(-50%, -50%)",
                 boxShadow: "0 2px 14px rgba(0,0,0,0.12)",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
               tabIndex={0}
               aria-label={circle.color}
-              onClick={e =>
-                handleCircleClick(circle.id, circle.color, e)
-              }
+              onClick={e => handleCircleInteraction(circle.id, circle.color, e)}
+              onTouchStart={e => handleCircleInteraction(circle.id, circle.color, e)}
               disabled={!gameActive}
             >
               <span
@@ -216,6 +226,20 @@ const ColorCatchGame: React.FC<ColorCatchProps> = ({ onFinish }) => {
             </button>
           );
         })}
+
+        {showGameOver && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="text-4xl font-bold text-luxury-gold mb-4 animate-bounce">
+              Game Over!
+            </div>
+            <div className="text-2xl text-white mb-2">
+              Final Score: {score}
+            </div>
+            <div className="text-sm text-luxury-white/70">
+              Time: {30 - timeLeft} seconds
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

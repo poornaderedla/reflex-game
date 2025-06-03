@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Circle, CheckCircle } from "lucide-react";
@@ -90,26 +89,33 @@ const FindColorGame: React.FC<FindColorProps> = ({ onFinish }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <div className="mb-8 text-center">
-        <div className="text-lg mb-2">Find this color:</div>
+        <div className="text-xl mb-4">Find this color:</div>
         <div 
-          className="text-3xl font-bold mb-6" 
+          className="text-5xl font-bold mb-8" 
           style={getColorStyle(targetColor)}
         >
-          ■■■
+          ■■■■■
         </div>
-        <div className="text-sm mb-4 text-luxury-white/70">
+        <div className="text-sm mb-6 text-luxury-white/70">
           Round {round + 1}/{maxRounds}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
+      <div className="grid grid-cols-2 gap-6 w-full max-w-md">
         {options.map((color, index) => (
           <Button
             key={index}
             onClick={() => handleColorClick(color)}
-            className="py-8 text-lg font-medium"
+            className="py-12 text-xl font-medium transition-all hover:scale-105 active:scale-95"
             variant="outline"
             disabled={!gameActive}
+            style={{
+              borderWidth: '2px',
+              borderColor: getColorStyle(color).color,
+              color: getColorStyle(color).color,
+              backgroundColor: 'rgba(0, 0, 0, 0.2)',
+              backdropFilter: 'blur(4px)',
+            }}
           >
             {color}
           </Button>

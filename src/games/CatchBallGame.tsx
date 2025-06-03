@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
 interface CatchBallGameProps {
@@ -11,8 +10,8 @@ const CatchBallGame: React.FC<CatchBallGameProps> = ({ onFinish }) => {
   const [gameStartTime, setGameStartTime] = useState<number>(0);
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 0 });
   const [ballActive, setBallActive] = useState<boolean>(false);
-  const [ballSize, setBallSize] = useState<number>(50);
-  const [speed, setSpeed] = useState<number>(2);
+  const [ballSize, setBallSize] = useState<number>(70);
+  const [speed, setSpeed] = useState<number>(0.5);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const maxMisses = 5; // Game ends after 5 misses
@@ -34,8 +33,8 @@ const CatchBallGame: React.FC<CatchBallGameProps> = ({ onFinish }) => {
   useEffect(() => {
     // Every 5 points, increase speed and decrease ball size
     if (score > 0 && score % 5 === 0) {
-      setSpeed(prevSpeed => Math.min(prevSpeed + 0.5, 6));
-      setBallSize(prevSize => Math.max(prevSize - 2, 30));
+      setSpeed(prevSpeed => Math.min(prevSpeed + 0.2, 2));
+      setBallSize(prevSize => Math.max(prevSize - 1, 50));
     }
   }, [score]);
   
@@ -79,7 +78,10 @@ const CatchBallGame: React.FC<CatchBallGameProps> = ({ onFinish }) => {
     animationFrameRef.current = requestAnimationFrame(animate);
   }, [speed, score, gameStartTime, ballActive, onFinish]);
   
-  const handleBallClick = useCallback(() => {
+  const handleBallClick = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault(); // Prevent default behavior
+    e.stopPropagation(); // Stop event bubbling
+    
     if (!ballActive) return;
     
     // Cancel animation
@@ -115,15 +117,30 @@ const CatchBallGame: React.FC<CatchBallGameProps> = ({ onFinish }) => {
       
       {ballActive && (
         <button
-          className="absolute rounded-full bg-luxury-gold transition-transform hover:scale-105 focus:outline-none touch-target"
+          className="absolute rounded-full bg-luxury-gold transition-transform hover:scale-105 focus:outline-none touch-target active:scale-95"
           style={{
             left: `${ballPosition.x}%`,
             top: `${ballPosition.y}%`,
             transform: 'translate(-50%, -50%)',
             width: `${ballSize}px`,
             height: `${ballSize}px`,
+            cursor: 'pointer',
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent',
+            padding: '20px', // Even larger hit area
+            zIndex: 1000,
+            boxShadow: '0 0 15px rgba(255, 215, 0, 0.7)', // More visible glow
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            MozUserSelect: 'none',
+            msUserSelect: 'none',
           }}
           onClick={handleBallClick}
+          onTouchStart={handleBallClick}
+          onTouchEnd={handleBallClick}
+          aria-label="Click to catch the ball"
+          role="button"
+          tabIndex={0}
         />
       )}
       
