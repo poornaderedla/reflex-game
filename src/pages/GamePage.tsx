@@ -32,6 +32,8 @@ const GamePage: React.FC = () => {
   const [gameScore, setGameScore] = useState(0);
   const [gameTime, setGameTime] = useState(0);
   const [isHighScore, setIsHighScore] = useState(false);
+  const [penaltyScore, setPenaltyScore] = useState(0);
+  const [penaltyClicks, setPenaltyClicks] = useState(0);
   const navigate = useNavigate();
 
   const game = games.find(g => g.id === gameId);
@@ -44,7 +46,7 @@ const GamePage: React.FC = () => {
     setShowResults(false);
   };
 
-  const handleGameEnd = (score: number, time: number) => {
+  const handleGameEnd = (score: number, time: number, penaltyScoreArg?: number, penaltyClicksArg?: number) => {
     const highScore = getGameHighScore(game.id as GameType) || 0;
     const newHighScore = score > highScore;
     
@@ -61,6 +63,8 @@ const GamePage: React.FC = () => {
     setGameScore(score);
     setGameTime(time);
     setIsHighScore(newHighScore);
+    if (penaltyScoreArg !== undefined) setPenaltyScore(penaltyScoreArg);
+    if (penaltyClicksArg !== undefined) setPenaltyClicks(penaltyClicksArg);
     setShowResults(true);
   };
 
@@ -96,7 +100,7 @@ const GamePage: React.FC = () => {
 
   return (
     <Layout>
-      {showResults ? (
+      {showResults && game.id !== "catchBall" ? (
         <GameResult
           title={game.name}
           score={gameScore}
@@ -104,6 +108,8 @@ const GamePage: React.FC = () => {
           isHighScore={isHighScore}
           onRestart={handleRestart}
           standardBestAverage={standardBestAverage}
+          penaltyScore={penaltyScore}
+          penaltyClicks={penaltyClicks}
         />
       ) : (
         <GameContainer

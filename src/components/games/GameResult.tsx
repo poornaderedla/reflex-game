@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Award, Clock, Share2, RotateCcw, Home } from "lucide-react";
@@ -11,6 +10,8 @@ interface GameResultProps {
   isHighScore: boolean;
   onRestart: () => void;
   standardBestAverage?: number; // NEW
+  penaltyScore?: number;
+  penaltyClicks?: number;
 }
 
 const GameResult: React.FC<GameResultProps> = ({
@@ -20,6 +21,8 @@ const GameResult: React.FC<GameResultProps> = ({
   isHighScore,
   onRestart,
   standardBestAverage,
+  penaltyScore,
+  penaltyClicks,
 }) => {
   const navigate = useNavigate();
 
@@ -49,16 +52,7 @@ const GameResult: React.FC<GameResultProps> = ({
           </div>
         )}
 
-        <Heading as="h2" className="text-3xl font-bold">
-          {score}
-        </Heading>
-
         <div className="flex items-center justify-center gap-3 text-sm text-luxury-white/70">
-          <div className="flex items-center gap-1.5">
-            <Award className="h-4 w-4 text-luxury-gold" />
-            <span>Score</span>
-          </div>
-          <div className="h-4 w-px bg-luxury-white/20"></div>
           <div className="flex items-center gap-1.5">
             <Clock className="h-4 w-4 text-luxury-gold" />
             <span>{(time / 1000).toFixed(2)}s</span>
@@ -66,10 +60,21 @@ const GameResult: React.FC<GameResultProps> = ({
         </div>
 
         <div className="flex flex-col items-center gap-2 text-sm mt-2">
-          <div className="text-luxury-white/80 mb-0.5">Your Time: <span className="font-semibold">{(time / 1000).toFixed(2)}s</span></div>
+          <div className="text-luxury-white/80 mb-0.5">
+            <span className="font-semibold">Your Time:</span> {(time / 1000).toFixed(2)}s
+          </div>
+          {penaltyScore !== undefined && (
+            <div className="text-red-400 font-semibold">
+              Penalty: -{penaltyScore} points
+              {penaltyClicks !== undefined && (
+                <span className="ml-2 text-xs text-luxury-white/70">({penaltyClicks} penalty click{penaltyClicks === 1 ? '' : 's'})</span>
+              )}
+            </div>
+          )}
           {standardBestAverage !== undefined && (
-            <div className="text-green-400 font-semibold">
-              World Standard Time: {standardBestAverage.toFixed(2)}s
+            <div className="text-green-400 font-semibold flex items-center gap-1">
+              <span>World Standard Time:</span> {standardBestAverage.toFixed(2)}s
+              <span className="text-xs text-luxury-white/60" title="This is a typical best time for this game based on global averages. It gives you a benchmark to compare your performance.">[?]</span>
             </div>
           )}
         </div>

@@ -1,152 +1,207 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 interface CatchBallGameProps {
   onFinish: (score: number, time: number) => void;
 }
 
+const BALL_SIZE = 50;
+const BALL_SPEED = 2; // px per frame (reduced speed)
+const BALL_COUNT = 10;
+const SIDES = ["top", "bottom", "left", "right"] as const;
+type Side = typeof SIDES[number];
+
 const CatchBallGame: React.FC<CatchBallGameProps> = ({ onFinish }) => {
   const [score, setScore] = useState<number>(0);
-  const [misses, setMisses] = useState<number>(0);
+  const [gameOver, setGameOver] = useState<boolean>(false);
   const [gameStartTime, setGameStartTime] = useState<number>(0);
-  const [ballPosition, setBallPosition] = useState({ x: 50, y: 0 });
-  const [ballActive, setBallActive] = useState<boolean>(false);
-  const [ballSize, setBallSize] = useState<number>(70);
-  const [speed, setSpeed] = useState<number>(0.5);
+  const [gameEndTime, setGameEndTime] = useState<number | null>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [ball, setBall] = useState<{
+    x: number;
+    y: number;
+    dx: number;
+    dy: number;
+    moving: boolean;
+    index: number;
+  } | null>(null);
+  const [ballIndex, setBallIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number>(0);
 
-  const maxMisses = 5; // Game ends after 5 misses
-  const animationFrameRef = useRef<number>(0);
-  
-  // Initialize game
+  // Initialize first ball
   useEffect(() => {
     setGameStartTime(Date.now());
-    launchBall();
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
+    if (containerRef.current) {
+      const { width, height } = containerRef.current.getBoundingClientRect();
+      setContainerSize({ width, height });
+      spawnBall(0, width, height);
+    }
+    // eslint-disable-next-line
   }, []);
-  
-  // Increase difficulty as score increases
+
+  // Update container size on resize
   useEffect(() => {
-    // Every 5 points, increase speed and decrease ball size
-    if (score > 0 && score % 5 === 0) {
-      setSpeed(prevSpeed => Math.min(prevSpeed + 0.2, 2));
-      setBallSize(prevSize => Math.max(prevSize - 1, 50));
-    }
-  }, [score]);
-  
-  const launchBall = useCallback(() => {
-    if (!containerRef.current) return;
-    
-    // Random x position between 10% and 90% of container width
-    const randomX = Math.random() * 80 + 10;
-    setBallPosition({ x: randomX, y: 0 });
-    setBallActive(true);
-    
-    let y = 0;
-    const animate = () => {
-      y += speed;
-      setBallPosition({ x: randomX, y });
-      
-      const containerHeight = containerRef.current?.clientHeight || 0;
-      
-      // If the ball reaches the bottom
-      if (y >= 100) {
-        setMisses(prev => {
-          const newMisses = prev + 1;
-          if (newMisses >= maxMisses) {
-            // Game over
-            onFinish(score, Date.now() - gameStartTime);
-          } else {
-            // Launch a new ball
-            setTimeout(launchBall, 500);
-          }
-          return newMisses;
-        });
-        setBallActive(false);
-        return;
-      }
-      
-      if (ballActive) {
-        animationFrameRef.current = requestAnimationFrame(animate);
+    const handleResize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        setContainerSize({ width, height });
       }
     };
-    
-    animationFrameRef.current = requestAnimationFrame(animate);
-  }, [speed, score, gameStartTime, ballActive, onFinish]);
-  
-  const handleBallClick = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault(); // Prevent default behavior
-    e.stopPropagation(); // Stop event bubbling
-    
-    if (!ballActive) return;
-    
-    // Cancel animation
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Animate the current ball
+  useEffect(() => {
+    if (!ball || !ball.moving) return;
+    const animate = () => {
+      setBall(prev => {
+        if (!prev) return null;
+        let { x, y, dx, dy, moving, index } = prev;
+        x += dx;
+        y += dy;
+        // Bounce off walls
+        if (x <= 0) {
+          x = 0;
+          dx = Math.abs(dx);
+        } else if (x >= containerSize.width - BALL_SIZE) {
+          x = containerSize.width - BALL_SIZE;
+          dx = -Math.abs(dx);
+        }
+        if (y <= 0) {
+          y = 0;
+          dy = Math.abs(dy);
+        } else if (y >= containerSize.height - BALL_SIZE) {
+          y = containerSize.height - BALL_SIZE;
+          dy = -Math.abs(dy);
+        }
+        return { x, y, dx, dy, moving, index };
+      });
+      animationRef.current = requestAnimationFrame(animate);
+    };
+    animationRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [ball, containerSize]);
+
+  // Spawn a new ball at a random side, moving inwards
+  const spawnBall = (index: number, width: number, height: number) => {
+    const side: Side = SIDES[Math.floor(Math.random() * SIDES.length)];
+    let x = 0, y = 0, dx = 0, dy = 0;
+    switch (side) {
+      case "top":
+        x = Math.random() * (width - BALL_SIZE);
+        y = 0;
+        dx = (Math.random() - 0.5) * BALL_SPEED * 1.5; // small random angle
+        dy = BALL_SPEED;
+        break;
+      case "bottom":
+        x = Math.random() * (width - BALL_SIZE);
+        y = height - BALL_SIZE;
+        dx = (Math.random() - 0.5) * BALL_SPEED * 1.5;
+        dy = -BALL_SPEED;
+        break;
+      case "left":
+        x = 0;
+        y = Math.random() * (height - BALL_SIZE);
+        dx = BALL_SPEED;
+        dy = (Math.random() - 0.5) * BALL_SPEED * 1.5;
+        break;
+      case "right":
+        x = width - BALL_SIZE;
+        y = Math.random() * (height - BALL_SIZE);
+        dx = -BALL_SPEED;
+        dy = (Math.random() - 0.5) * BALL_SPEED * 1.5;
+        break;
     }
-    
-    // Calculate score based on speed and current position
-    // Catching higher up gives more points
-    const heightBonus = 100 - ballPosition.y;
-    const newPoints = Math.floor(10 + (heightBonus / 10) + speed * 2);
-    
-    setScore(prevScore => prevScore + newPoints);
-    setBallActive(false);
-    
-    // Launch next ball
-    setTimeout(launchBall, 500);
-  }, [ballActive, ballPosition.y, speed, launchBall]);
+    setBall({ x, y, dx, dy, moving: true, index });
+  };
+
+  // Handle ball click
+  const handleBallClick = () => {
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    setScore(s => s + 1);
+    if (ballIndex + 1 >= BALL_COUNT) {
+      setGameOver(true);
+      setGameEndTime(Date.now());
+      setBall(null);
+    } else {
+      // Spawn next ball
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        setBallIndex(i => i + 1);
+        spawnBall(ballIndex + 1, width, height);
+      }
+    }
+  };
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className="relative h-[calc(100vh-10rem)] w-full overflow-hidden bg-gray-900"
+      className="relative h-[calc(100vh-10rem)] w-full bg-gray-900 border-4 border-luxury-gold rounded-xl overflow-hidden"
+      style={{ boxSizing: "border-box" }}
     >
-      <div className="absolute left-0 right-0 top-0 flex justify-between p-4 text-white">
+      <div className="absolute left-0 right-0 top-0 flex justify-between p-4 text-white z-10">
         <div className="rounded-md bg-black/50 px-3 py-1 backdrop-blur-sm">
           Score: {score}
         </div>
         <div className="rounded-md bg-black/50 px-3 py-1 backdrop-blur-sm">
-          Misses: {misses}/{maxMisses}
+          Ball: {ballIndex + (gameOver ? 0 : 1)}/{BALL_COUNT}
         </div>
       </div>
-      
-      {ballActive && (
+      {ball && (
         <button
-          className="absolute rounded-full bg-luxury-gold transition-transform hover:scale-105 focus:outline-none touch-target active:scale-95"
+          className="absolute rounded-full bg-luxury-gold transition-transform hover:scale-105 focus:outline-none touch-target active:scale-95 shadow-lg"
           style={{
-            left: `${ballPosition.x}%`,
-            top: `${ballPosition.y}%`,
-            transform: 'translate(-50%, -50%)',
-            width: `${ballSize}px`,
-            height: `${ballSize}px`,
-            cursor: 'pointer',
-            touchAction: 'manipulation',
-            WebkitTapHighlightColor: 'transparent',
-            padding: '20px', // Even larger hit area
-            zIndex: 1000,
-            boxShadow: '0 0 15px rgba(255, 215, 0, 0.7)', // More visible glow
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            MozUserSelect: 'none',
-            msUserSelect: 'none',
+            left: ball.x,
+            top: ball.y,
+            width: BALL_SIZE,
+            height: BALL_SIZE,
+            cursor: "pointer",
+            touchAction: "manipulation",
+            WebkitTapHighlightColor: "transparent",
+            zIndex: 100,
+            boxShadow: "0 0 15px rgba(255, 215, 0, 0.7)",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            MozUserSelect: "none",
+            msUserSelect: "none",
+            border: "3px solid #fff8",
+            transform: "translate(0, 0)",
           }}
           onClick={handleBallClick}
-          onTouchStart={handleBallClick}
-          onTouchEnd={handleBallClick}
           aria-label="Click to catch the ball"
           role="button"
           tabIndex={0}
         />
       )}
-      
-      {misses >= maxMisses && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-          <div className="text-2xl font-bold text-white">Game Over!</div>
+      {gameOver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-luxury-black rounded-2xl shadow-2xl border-2 border-luxury-gold p-6 flex flex-col items-center animate-fade-in">
+            <div className="text-center mb-4">
+              <div className="text-3xl font-bold text-luxury-gold mb-2">Game Over!</div>
+              <div className="text-lg text-white mb-1">Catch Ball Results</div>
+            </div>
+            <div className="w-full flex flex-col gap-2 mb-4">
+              <div className="flex justify-between text-lg">
+                <span className="text-luxury-white/80">Final Score:</span>
+                <span className="font-bold text-luxury-gold">{score}</span>
+              </div>
+              <div className="flex justify-between text-base">
+                <span className="text-luxury-white/60">Total Time:</span>
+                <span>{gameEndTime ? ((gameEndTime - gameStartTime) / 1000).toFixed(2) : "-"}s</span>
+              </div>
+            </div>
+            <div className="flex gap-4 mt-4 w-full">
+              <button
+                className="flex-1 px-4 py-2 bg-luxury-gold text-luxury-black font-semibold rounded hover:bg-yellow-400 transition"
+                onClick={() => window.location.reload()}
+              >
+                Play Again
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
