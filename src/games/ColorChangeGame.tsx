@@ -193,6 +193,11 @@ const ColorChangeGame: React.FC<ColorChangeGameProps> = ({ onFinish }) => {
       >
         <div className="mt-8 text-center text-black text-lg">
           Wait for the color change...
+          {penaltyClicks > 0 && (
+            <div className="text-red-500 mt-2">
+              Penalty: -{penaltyScore} points ({penaltyClicks} early clicks)
+            </div>
+          )}
         </div>
       </div>
     );
@@ -216,6 +221,10 @@ const ColorChangeGame: React.FC<ColorChangeGameProps> = ({ onFinish }) => {
             <div className="flex justify-between text-base">
               <span className="text-luxury-white/60">Total Score:</span>
               <span>{score}</span>
+            </div>
+            <div className="flex justify-between text-base">
+              <span className="text-luxury-white/60">Penalty Deductions:</span>
+              <span className="text-red-400">-{penaltyScore} ({penaltyClicks} early clicks)</span>
             </div>
             <div className="flex justify-between text-base">
               <span className="text-luxury-white/60">Avg. Reaction:</span>
@@ -292,7 +301,11 @@ const ColorChangeGame: React.FC<ColorChangeGameProps> = ({ onFinish }) => {
             Avg. Reaction: {calculateStats()?.average || 0}ms
           </div>
         )}
-        {/* Penalty display removed */}
+        {penaltyClicks > 0 && (
+          <div className="text-sm font-medium text-white/70">
+            Penalties: -{penaltyScore} ({penaltyClicks} clicks)
+          </div>
+        )}
         
         <div className="mt-8 text-center text-white">
           {!isChanging ? (
