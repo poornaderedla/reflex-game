@@ -208,6 +208,17 @@ const CatchBallGame: React.FC<CatchBallGameProps> = ({ onFinish }) => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
         <div className="w-full max-w-md bg-luxury-black rounded-2xl shadow-2xl border-2 border-luxury-gold p-6 flex flex-col items-center animate-fade-in">
+          {/* Best Results & Tips Section */}
+          <div className="w-full mb-4 p-3 rounded-lg bg-luxury-gold/10 border border-luxury-gold/40 text-center">
+            <div className="text-base font-semibold text-luxury-gold mb-1">How to Get the Best Results</div>
+            <div className="text-sm text-luxury-white/80 mb-1">
+              Tap the ball as quickly as possible. The faster you react, the higher your score! Wrong clicks will reduce your score.
+            </div>
+            <div className="text-sm text-luxury-gold">
+              <span className="font-bold">World Class:</span> {reactionTimeBenchmarks.worldClass}ms average reaction
+            </div>
+          </div>
+          {/* End Best Results & Tips Section */}
           <div className="text-center mb-4">
             <div className="text-3xl font-bold text-luxury-gold mb-2">Game Over!</div>
             <div className="text-lg text-white mb-1">Catch Ball Results</div>
@@ -268,6 +279,12 @@ const CatchBallGame: React.FC<CatchBallGameProps> = ({ onFinish }) => {
               onClick={() => window.location.reload()}
             >
               Play Again
+            </button>
+            <button
+              className="flex-1 px-4 py-2 bg-luxury-white text-luxury-black font-semibold rounded hover:bg-luxury-gold transition"
+              onClick={() => navigator.share && navigator.share({ title: 'Catch Ball Results', text: `Score: ${score}, Net: ${netScore}, Avg: ${stats?.average ?? 0}ms`, url: window.location.href })}
+            >
+              Share
             </button>
           </div>
         </div>

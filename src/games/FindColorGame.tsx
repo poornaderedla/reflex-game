@@ -85,18 +85,18 @@ const FindColorGame: React.FC<FindColorProps> = ({ onFinish }) => {
     if (color === targetColor) {
       setScore(prev => prev + 1);
       setReactionTimes(prev => [...prev, now - lastRoundTime]);
-      setRound(prev => {
-        const nextRound = prev + 1;
-        if (nextRound >= maxRounds) {
+    setRound(prev => {
+      const nextRound = prev + 1;
+      if (nextRound >= maxRounds) {
           setGameEndTime(now);
           setShowResults(true);
           setGameActive(false);
-          return prev;
-        } else {
-          generateNewRound();
-          return nextRound;
-        }
-      });
+        return prev;
+      } else {
+        generateNewRound();
+        return nextRound;
+      }
+    });
     } else {
       // Wrong color - penalty
       setPenaltyClicks(prev => prev + 1);
